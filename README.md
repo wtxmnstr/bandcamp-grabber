@@ -38,7 +38,7 @@
 системный питон:
 
 ```bash
-pipx install git+https://github.com/W/bandcamp-grabber.git
+pipx install git+https://github.com/wtxmnstr/bandcamp-grabber.git
 ```
 
 Или если репозиторий уже склонирован локально:
