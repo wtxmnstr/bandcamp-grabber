@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bandcamp-grabber"
+version = "0.1.0"
+description = "Скачивает альбомы с Bandcamp и встраивает обложку в ID3-теги аудиофайлов"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "wtxmnstr" }]
+dependencies = [
+    "requests>=2.31",
+    "beautifulsoup4>=4.12",
+    "mutagen>=1.47",
+]
+
+[project.scripts]
+bandcamp-grabber = "bandcamp_grabber.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/wtxmnstr/bandcamp-grabber"
