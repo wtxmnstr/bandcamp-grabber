@@ -4,7 +4,7 @@ from pathlib import Path
 
 from . import __version__
 from .banner import print_banner
-from .covers import embed_cover_in_folder
+from .metadata import embed_metadata_in_folder
 from .downloader import download_album
 from .utils import find_cover
 
@@ -40,19 +40,14 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        album_dir = download_album(args.url, args.output, delay=args.delay)
+        result = download_album(args.url, args.output, delay=args.delay)
     except Exception as e:
         print(f"Ошибка при скачивании: {e}", file=sys.stderr)
         return 1
 
-    if args.no_cover or args.no_embed:
+    if args.no_embed:
         return 0
 
-    cover = find_cover(album_dir)
-    if cover is None:
-        print("Обложка не найдена.")
-        return 0
-
-    print(f"\nВстраиваю обложку {cover.name} в треки:")
-    embed_cover_in_folder(album_dir, cover)
+    print("\nЗапись тегов:")
+    embed_metadata_in_folder(result["album_dir"], result["tracks"], result)
     return 0

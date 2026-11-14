@@ -21,6 +21,16 @@ def fetch_page(url: str) -> BeautifulSoup:
     return BeautifulSoup(r.text, "html.parser")
 
 
+def extract_year(tralbum: dict) -> str | None:
+    date = (tralbum.get("current") or {}).get("release_date") or tralbum.get("album_release_date")
+    if not date:
+        return None
+    for part in date.split():
+        if part.isdigit() and len(part) == 4:
+            return part
+    return None
+
+
 def parse_tralbum(soup: BeautifulSoup) -> dict:
     for script in soup.find_all("script"):
         if script.has_attr("data-tralbum"):
@@ -111,4 +121,15 @@ def download_album(album_url: str, base_dir: Path, delay: float = 1.5) -> Path:
         time.sleep(delay)
 
     print("\nСкачивание завершено.")
-    return album_dir
+
+    return {
+        "album_dir": album_dir,
+        "artist": artist,
+        "album": album_title,
+        "year": extract_year(tralbum),
+        "cover_path": str(cover_path) if cover_path else None,
+        "tracks": [
+            {"track_num": t.get("track_num", i), "title": t.get("title", f"Track {i}")}
+            for i, t in enumerate(trackinfo, start=1)
+        ],
+    }
