@@ -2,7 +2,7 @@ import json
 import time
 from pathlib import Path
 
-import requests
+from curl_cffi import requests as cffi_requests
 from bs4 import BeautifulSoup
 
 from .utils import sanitize_filename
@@ -16,9 +16,9 @@ HEADERS = {
 
 
 def fetch_page(url: str) -> BeautifulSoup:
-    r = requests.get(url, headers=HEADERS, timeout=30)
+    r = cffi_requests.get(url, timeout=30, impersonate="safari")
     r.raise_for_status()
-    return BeautifulSoup(r.text, "html.parser")
+    return BeautifulSoup(r.content, "lxml")
 
 
 def extract_year(tralbum: dict) -> str | None:
@@ -51,7 +51,7 @@ def extract_cover_url(soup: BeautifulSoup, tralbum: dict) -> str | None:
 
 
 def download_cover(url: str, dest: Path) -> Path:
-    r = requests.get(url, headers=HEADERS, stream=True, timeout=30)
+    r = cffi_requests.get(url, stream=True, timeout=30, impersonate="safari")
     r.raise_for_status()
     with dest.open("wb") as f:
         for chunk in r.iter_content(chunk_size=8192):
@@ -81,6 +81,7 @@ def download_album(album_url: str, base_dir: Path, delay: float = 1.5) -> Path:
 
     # Обложка
     cover_url = extract_cover_url(soup, tralbum)
+    cover_path = None
     if cover_url:
         ext = ".png" if cover_url.lower().endswith(".png") else ".jpg"
         cover_path = album_dir / f"cover{ext}"
@@ -110,12 +111,13 @@ def download_album(album_url: str, base_dir: Path, delay: float = 1.5) -> Path:
 
         print(f"[↓] {filename}")
         try:
-            with requests.get(mp3_url, headers=HEADERS,
-                              stream=True, timeout=30) as r:
-                r.raise_for_status()
-                with filepath.open("wb") as f:
-                    for chunk in r.iter_content(chunk_size=8192):
-                        f.write(chunk)
+            r = cffi_requests.get(mp3_url, stream=True, timeout=30,
+                                  impersonate="safari")
+            r.raise_for_status()
+            with filepath.open("wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            r.close()
         except Exception as e:
             print(f"    [!] Ошибка: {e}")
         time.sleep(delay)
@@ -129,7 +131,8 @@ def download_album(album_url: str, base_dir: Path, delay: float = 1.5) -> Path:
         "year": extract_year(tralbum),
         "cover_path": str(cover_path) if cover_path else None,
         "tracks": [
-            {"track_num": t.get("track_num", i), "title": t.get("title", f"Track {i}")}
+            {"track_num": t.get("track_num", i),
+             "title": t.get("title", f"Track {i}")}
             for i, t in enumerate(trackinfo, start=1)
         ],
     }
