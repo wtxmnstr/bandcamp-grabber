@@ -82,7 +82,7 @@ def extract_country(soup: BeautifulSoup) -> str | None:
             if "," in name:
                 return name.rsplit(",", 1)[-1].strip()
             return name.strip()
-    return Non
+    return None
 
 
 def download_album(album_url: str, base_dir: Path, delay: float = 1.5) -> dict:
