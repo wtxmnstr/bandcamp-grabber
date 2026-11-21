@@ -59,7 +59,33 @@ def download_cover(url: str, dest: Path) -> Path:
     return dest
 
 
-def download_album(album_url: str, base_dir: Path, delay: float = 1.5) -> Path:
+def extract_country(soup: BeautifulSoup) -> str | None:
+    """Страна из JSON-LD publisher.foundingLocation.name.
+
+    Для артиста без лэйбла - страна артиста.
+    Для релизов на лейбле - страна лейбла (не артиста!).
+    Если поле отсутствует или содержит город через запятую
+    ("London, UK"), берётся последняя часть.
+    """
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string or "")
+        except (json.JSONDecodeError, AttributeError):
+            continue
+        if not isinstance(data, dict) or data.get("@type") != "MusicAlbum":
+            continue
+        publisher = data.get("publisher") or {}
+        location = publisher.get("foundingLocation") or {}
+        name = location.get("name")
+        if name:
+            # "London, UK" - "UK"; "Norway" - "Norway"
+            if "," in name:
+                return name.rsplit(",", 1)[-1].strip()
+            return name.strip()
+    return Non
+
+
+def download_album(album_url: str, base_dir: Path, delay: float = 1.5) -> dict:
     soup = fetch_page(album_url)
     tralbum = parse_tralbum(soup)
 
@@ -69,13 +95,28 @@ def download_album(album_url: str, base_dir: Path, delay: float = 1.5) -> Path:
     trackinfo = tralbum.get("trackinfo") or []
 
     if not trackinfo:
-        raise RuntimeError("В JSON нет trackinfo - нечего скачивать.")
+        raise RuntimeError("В JSON нет trackinfo — нечего скачивать.")
 
-    album_dir = base_dir / sanitize_filename(artist) / sanitize_filename(album_title)
+    year = extract_year(tralbum)
+    country = extract_country(soup)
+
+    # Путь: "Artist (Country) / Album (Year) / NN - Title.mp3"
+    artist_folder = sanitize_filename(artist)
+    if country:
+        artist_folder = f"{artist_folder} ({sanitize_filename(country)})"
+
+    album_folder = sanitize_filename(album_title)
+    if year:
+        album_folder = f"{album_folder} ({year})"
+
+    album_dir = base_dir / artist_folder / album_folder
     album_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Исполнитель: {artist}")
-    print(f"Альбом:      {album_title}")
+    artist_line = f"{artist} ({country})" if country else artist
+    album_line = f"{album_title} ({year})" if year else album_title
+
+    print(f"Исполнитель: {artist_line}")
+    print(f"Альбом:      {album_line}")
     print(f"Треков:      {len(trackinfo)}")
     print(f"Папка:       {album_dir}\n")
 
@@ -128,7 +169,8 @@ def download_album(album_url: str, base_dir: Path, delay: float = 1.5) -> Path:
         "album_dir": album_dir,
         "artist": artist,
         "album": album_title,
-        "year": extract_year(tralbum),
+        "year": year,
+        "country": country,
         "cover_path": str(cover_path) if cover_path else None,
         "tracks": [
             {"track_num": t.get("track_num", i),

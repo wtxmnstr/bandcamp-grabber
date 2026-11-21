@@ -29,6 +29,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="Не печатать ASCII-баннер")                    
     parser.add_argument("--version", action="version",
                         version=f"bandcamp-grabber {__version__}")
+    parser.add_argument("--no-parentheses", action="store_true",
+                    help="Не добавлять (страна) и (год) в имена папок")
 
     meta_flags = ("-h", "--help", "--version")
     wants_meta = any(flag in meta_flags for flag in raw_argv)
